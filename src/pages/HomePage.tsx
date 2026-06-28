@@ -3,14 +3,12 @@ import { useNavigate } from 'react-router-dom'
 import { useStore } from '../hooks/StoreContext'
 import { onlineStore } from '../lib/supabaseGameStore'
 
-type Mode = 'local' | 'online'
 type Step = 'menu' | 'local_setup' | 'local_adding' | 'local_ready' | 'online_setup'
 
 export default function HomePage() {
   const navigate = useNavigate()
   const store = useStore()
 
-  const [mode, setMode] = useState<Mode>('local')
   const [step, setStep] = useState<Step>('menu')
   const [nickname, setNickname] = useState('')
   const [players, setPlayers] = useState<string[]>([])
@@ -83,12 +81,12 @@ export default function HomePage() {
       {/* ===== 主菜单 ===== */}
       {step === 'menu' && (
         <div className="bg-gray-800 rounded-2xl p-8 w-full max-w-md space-y-4">
-          <button onClick={() => { setMode('local'); setStep('local_setup') }}
+          <button onClick={() => setStep('local_setup')}
             className="w-full py-4 bg-purple-600 hover:bg-purple-500 rounded-xl font-semibold text-lg transition-colors">
             🖥️ 本地热座（同一台电脑）
           </button>
-          <button onClick={() => { setMode('online'); setStep('local_setup') }}
-            className="w-full py-4 bg-blue-600 hover:bg-blue-500 rounded-xl font-semibold text-lg transition-colors">
+          <button onClick={() => setStep('online_setup')}
+            className="w-full py-setStep('online_setup')t-semibold text-lg transition-colors">
             🌐 在线联机（多人异地）
           </button>
           <p className="text-xs text-gray-600 text-center pt-2">
@@ -167,10 +165,9 @@ export default function HomePage() {
       )}
 
       {/* ===== 在线模式 ===== */}
-      {(step === 'online_setup' || (step === 'local_setup' && mode === 'online')) && (
-        mode === 'online' && step === 'local_setup' ? (
-          <div className="bg-gray-800 rounded-2xl p-8 w-full max-w-md space-y-6">
-            <button onClick={() => setStep('menu')} className="text-sm text-gray-500 hover:text-gray-400">← 返回</button>
+      {step === 'online_setup' && !gameCode && (
+        <div className="bg-gray-800 rounded-2xl p-8 w-full max-w-md space-y-6">
+          <button onClick={() => setStep('menu')} className="text-sm text-gray-500 hover:text-gray-400">← 返回</button>
             <div className="flex gap-2 mb-3">
               {[2,3,4,5,6].map(n => (
                 <button key={n} onClick={() => setPlayerCount(n)}
@@ -203,21 +200,23 @@ export default function HomePage() {
             </div>
             {error && <div className="bg-red-900/50 border border-red-700 rounded-lg px-4 py-2 text-red-300 text-sm">{error}</div>}
           </div>
-        ) : (
-          <div className="bg-gray-800 rounded-2xl p-8 w-full max-w-md space-y-6 text-center">
-            <div className="text-6xl mb-2">🌐</div>
-            <h2 className="text-xl font-semibold">房间已创建</h2>
-            <div className="bg-gray-700 rounded-xl p-6">
-              <div className="text-sm text-gray-400 mb-2">加入码</div>
-              <div className="text-4xl font-mono font-bold tracking-widest text-blue-400">{gameCode}</div>
-            </div>
-            <p className="text-sm text-gray-400">等待其他玩家加入...</p>
-            <button onClick={() => navigate(`/draft/${onlineStore.gameId}`)}
-              className="w-full py-3 bg-blue-600 hover:bg-blue-500 rounded-lg font-semibold transition-colors">
-              ▶️ 开始游戏
-            </button>
+      )}
+
+      {/* ===== 在线模式：房间已创建 ===== */}
+      {step === 'online_setup' && gameCode && (
+        <div className="bg-gray-800 rounded-2xl p-8 w-full max-w-md space-y-6 text-center">
+          <div className="text-6xl mb-2">🌐</div>
+          <h2 className="text-xl font-semibold">房间已创建</h2>
+          <div className="bg-gray-700 rounded-xl p-6">
+            <div className="text-sm text-gray-400 mb-2">加入码</div>
+            <div className="text-4xl font-mono font-bold tracking-widest text-blue-400">{gameCode}</div>
           </div>
-        )
+          <p className="text-sm text-gray-400">等待其他玩家加入...</p>
+          <button onClick={() => navigate(`/draft/${onlineStore.gameId}`)}
+            className="w-full py-3 bg-blue-600 hover:bg-blue-500 rounded-lg font-semibold transition-colors">
+            ▶️ 开始游戏
+          </button>
+        </div>
       )}
 
       <p className="mt-8 text-gray-600 text-sm">2-6 人欢乐竞速 · 36 个独特角色 · 千奇百怪的技能</p>
