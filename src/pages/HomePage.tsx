@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../hooks/StoreContext'
+import { supabase } from '../lib/supabase'
 import { onlineStore } from '../lib/supabaseGameStore'
 
 type Step = 'menu' | 'local_setup' | 'local_adding' | 'local_ready' | 'online_setup'
@@ -17,6 +18,38 @@ export default function HomePage() {
   const [gameCode, setGameCode] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [onlinePlayers, setOnlinePlayers] = useState<{ id: string; nickname: string }[]>([])
+
+  // 在线模式：订阅玩家加入
+  useEffect(() => {
+    if (!onlineStore.gameId || !gameCode) return
+
+    // 先加载已有玩家
+    supabase.from('game_players').select('id, nickname')
+      .eq('game_id', onlineStore.gameId)
+      .order('seat_order')
+      .then(({ data }) => {
+        if (data) setOnlinePlayers(data.map(p => ({ id: p.id, nickname: p.nickname })))
+      })
+
+    // 实时订阅新玩家
+    const channel = supabase
+      .channel(`waiting:${onlineStore.gameId}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'game_players',
+        filter: `game_id=eq.${onlineStore.gameId}`,
+      }, (payload) => {
+        setOnlinePlayers(prev => {
+          if (prev.find(p => p.id === payload.new.id)) return prev
+          return [...prev, { id: payload.new.id, nickname: payload.new.nickname }]
+        })
+      })
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
+  }, [gameCode])
 
   // ==================== 本地模式 ====================
   function localStart() {
@@ -62,7 +95,7 @@ export default function HomePage() {
     setError('')
     try {
       await onlineStore.joinGame(nickname.trim(), joinCode.trim())
-      navigate(`/draft/${onlineStore.gameId}`)
+      setGameCode(joinCode.trim().toUpperCase())  // 显示等待室
     } catch (e) {
       setError(e instanceof Error ? e.message : '加入失败')
     } finally {
@@ -217,17 +250,51 @@ export default function HomePage() {
 
       {/* ===== 在线模式：房间已创建 ===== */}
       {step === 'online_setup' && gameCode && (
-        <div className="bg-gray-800 rounded-2xl p-8 w-full max-w-md space-y-6 text-center">
+        <div className="bg-gray-800 rounded-2xl p-8 w-full max-w-md space-y-5 text-center">
           <div className="text-6xl mb-2">🌐</div>
           <h2 className="text-xl font-semibold">房间已创建</h2>
-          <div className="bg-gray-700 rounded-xl p-6">
-            <div className="text-sm text-gray-400 mb-2">加入码</div>
+          <div className="bg-gray-700 rounded-xl p-4">
+            <div className="text-sm text-gray-400 mb-1">加入码</div>
             <div className="text-4xl font-mono font-bold tracking-widest text-blue-400">{gameCode}</div>
           </div>
-          <p className="text-sm text-gray-400">等待其他玩家加入...</p>
-          <button onClick={() => navigate(`/draft/${onlineStore.gameId}`)}
-            className="w-full py-3 bg-blue-600 hover:bg-blue-500 rounded-lg font-semibold transition-colors">
-            ▶️ 开始游戏
+
+          {/* 玩家列表 */}
+          <div className="bg-gray-700 rounded-xl p-4 text-left">
+            <div className="text-sm text-gray-400 mb-3">
+              已加入 ({onlinePlayers.length}人)
+            </div>
+            <div className="space-y-2">
+              {onlinePlayers.map((p, i) => {
+                const isMe = p.id === onlineStore.currentUserId
+                const isReady = true // TODO: actual ready state
+                return (
+                  <div key={p.id} className="flex items-center gap-3 px-3 py-2 bg-gray-600 rounded-lg">
+                    <span className="text-gray-500 text-sm w-6">#{i + 1}</span>
+                    <span className="flex-1">{p.nickname}</span>
+                    {isMe && (
+                      <button
+                        onClick={async () => {
+                          await supabase.from('game_players').update({ is_ready: true })
+                            .eq('id', p.id)
+                        }}
+                        className="text-xs px-3 py-1 bg-green-600 hover:bg-green-500 rounded transition-colors"
+                      >
+                        准备
+                      </button>
+                    )}
+                    {!isMe && <span className="text-xs text-green-400">✅ 已准备</span>}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          <button
+            onClick={() => navigate(`/draft/${onlineStore.gameId}`)}
+            disabled={onlinePlayers.length < 2}
+            className="w-full py-3 bg-blue-600 hover:bg-blue-500 disabled:opacity-30 disabled:cursor-not-allowed rounded-lg font-semibold transition-colors"
+          >
+            {onlinePlayers.length < 2 ? `等待玩家加入... (${onlinePlayers.length}/?)` : '▶️ 开始游戏'}
           </button>
         </div>
       )}
