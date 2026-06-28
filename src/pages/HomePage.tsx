@@ -27,35 +27,35 @@ export default function HomePage() {
       return raw ? JSON.parse(raw) as { gameId: string; code: string } : null
     } catch { return null }
   })()
-  useEffect(() => {
-    if (!onlineStore.gameId || !gameCode) return
+  const [roomMaxPlayers, setRoomMaxPlayers] = useState(4)
 
-    // 先加载已有玩家
+  // 在线模式：订阅玩家加入 + 获取房间上限
+  useEffect(() => {
+    const gid = onlineStore.gameId
+    if (!gid || !gameCode) return
+
+    supabase.from('games').select('max_players').eq('id', gid).single()
+      .then(({ data }) => { if (data) setRoomMaxPlayers(data.max_players ?? 4) })
+
     supabase.from('game_players').select('id, user_id, nickname')
-      .eq('game_id', onlineStore.gameId)
-      .order('seat_order')
+      .eq('game_id', gid).order('seat_order')
       .then(({ data }) => {
         if (data) setOnlinePlayers(data.map(p => ({ id: p.id, userId: p.user_id, nickname: p.nickname })))
       })
 
-    // 实时订阅新玩家
     const channel = supabase
-      .channel(`waiting:${onlineStore.gameId}`)
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'game_players',
-        filter: `game_id=eq.${onlineStore.gameId}`,
+      .channel(`waiting:${gid}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public',
+        table: 'game_players', filter: `game_id=eq.${gid}`,
       }, (payload) => {
         setOnlinePlayers(prev => {
           if (prev.find(p => p.id === payload.new.id)) return prev
           return [...prev, { id: payload.new.id, userId: payload.new.user_id, nickname: payload.new.nickname }]
         })
-      })
-      .subscribe()
+      }).subscribe()
 
     return () => { supabase.removeChannel(channel) }
-  }, [gameCode])
+  }, [onlineStore.gameId, gameCode])
 
   // ==================== 本地模式 ====================
   function localStart() {
@@ -282,7 +282,7 @@ export default function HomePage() {
           {/* 玩家列表 */}
           <div className="bg-gray-700 rounded-xl p-4 text-left">
             <div className="text-sm text-gray-400 mb-3">
-              已加入 ({onlinePlayers.length}/{playerCount}人)
+              已加入 ({onlinePlayers.length}/{roomMaxPlayers}人)
             </div>
             <div className="space-y-2">
               {onlinePlayers.map((p, i) => {
@@ -314,7 +314,7 @@ export default function HomePage() {
             disabled={onlinePlayers.length < 2}
             className="w-full py-3 bg-blue-600 hover:bg-blue-500 disabled:opacity-30 disabled:cursor-not-allowed rounded-lg font-semibold transition-colors"
           >
-            {onlinePlayers.length < 2 ? `等待玩家加入... (${onlinePlayers.length}/${playerCount})` : '▶️ 开始游戏'}
+            {onlinePlayers.length < 2 ? `等待玩家加入... (${onlinePlayers.length}/${roomMaxPlayers})` : '▶️ 开始游戏'}
           </button>
           <button onClick={() => {
             onlineStore.clearSession()
