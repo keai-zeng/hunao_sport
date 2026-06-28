@@ -3,21 +3,13 @@ import { useNavigate } from 'react-router-dom'
 import { useStore } from '../hooks/StoreContext'
 import { onlineStore } from '../lib/supabaseGameStore'
 
-type Step = 'locked' | 'menu' | 'local_setup' | 'local_adding' | 'local_ready' | 'online_setup'
-
-// 访问密码（修改这里来换密码，分享给朋友）
-const ACCESS_PASSWORD = 'hunao2024'
+type Step = 'menu' | 'local_setup' | 'local_adding' | 'local_ready' | 'online_setup'
 
 export default function HomePage() {
   const navigate = useNavigate()
   const store = useStore()
 
-  // 检查是否已解锁（localStorage 缓存 24 小时）
-  const cachedUnlock = localStorage.getItem('hunao_unlocked')
-  const isUnlocked = cachedUnlock && (Date.now() - Number(cachedUnlock)) < 86400000
-
-  const [step, setStep] = useState<Step>(isUnlocked ? 'menu' : 'locked')
-  const [passwordInput, setPasswordInput] = useState('')
+  const [step, setStep] = useState<Step>('menu')
   const [nickname, setNickname] = useState('')
   const [players, setPlayers] = useState<string[]>([])
   const [playerCount, setPlayerCount] = useState(4)
