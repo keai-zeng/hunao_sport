@@ -266,7 +266,6 @@ export default function HomePage() {
             <div className="space-y-2">
               {onlinePlayers.map((p, i) => {
                 const isMe = p.id === onlineStore.currentUserId
-                const isReady = true // TODO: actual ready state
                 return (
                   <div key={p.id} className="flex items-center gap-3 px-3 py-2 bg-gray-600 rounded-lg">
                     <span className="text-gray-500 text-sm w-6">#{i + 1}</span>
