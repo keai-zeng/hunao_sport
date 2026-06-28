@@ -20,7 +20,13 @@ export default function HomePage() {
   const [error, setError] = useState('')
   const [onlinePlayers, setOnlinePlayers] = useState<{ id: string; userId: string; nickname: string }[]>([])
 
-  // 在线模式：订阅玩家加入
+  // 检查是否有保存的会话
+  const savedSession = (() => {
+    try {
+      const raw = localStorage.getItem('hunao_session')
+      return raw ? JSON.parse(raw) as { gameId: string; code: string } : null
+    } catch { return null }
+  })()
   useEffect(() => {
     if (!onlineStore.gameId || !gameCode) return
 
@@ -114,6 +120,21 @@ export default function HomePage() {
       {/* ===== 主菜单 ===== */}
       {step === 'menu' && (
         <div className="bg-gray-800 rounded-2xl p-8 w-full max-w-md space-y-4">
+          {savedSession && (
+            <button onClick={async () => {
+              setLoading(true)
+              try {
+                await onlineStore.joinGame('', savedSession.code)
+                setGameCode(savedSession.code)
+                setStep('online_setup')
+              } catch (e) {
+                localStorage.removeItem('hunao_session')
+              } finally { setLoading(false) }
+            }}
+              className="w-full py-3 bg-amber-600 hover:bg-amber-500 rounded-lg font-semibold transition-colors text-sm">
+              🔄 重新加入房间 {savedSession.code}
+            </button>
+          )}
           <button onClick={() => setStep('local_setup')}
             className="w-full py-4 bg-purple-600 hover:bg-purple-500 rounded-xl font-semibold text-lg transition-colors shadow-lg shadow-purple-600/20">
             🖥️ 本地热座（同一台电脑）
@@ -261,7 +282,7 @@ export default function HomePage() {
           {/* 玩家列表 */}
           <div className="bg-gray-700 rounded-xl p-4 text-left">
             <div className="text-sm text-gray-400 mb-3">
-              已加入 ({onlinePlayers.length}人)
+              已加入 ({onlinePlayers.length}/{playerCount}人)
             </div>
             <div className="space-y-2">
               {onlinePlayers.map((p, i) => {
@@ -293,7 +314,16 @@ export default function HomePage() {
             disabled={onlinePlayers.length < 2}
             className="w-full py-3 bg-blue-600 hover:bg-blue-500 disabled:opacity-30 disabled:cursor-not-allowed rounded-lg font-semibold transition-colors"
           >
-            {onlinePlayers.length < 2 ? `等待玩家加入... (${onlinePlayers.length}/?)` : '▶️ 开始游戏'}
+            {onlinePlayers.length < 2 ? `等待玩家加入... (${onlinePlayers.length}/${playerCount})` : '▶️ 开始游戏'}
+          </button>
+          <button onClick={() => {
+            onlineStore.clearSession()
+            setGameCode('')
+            setStep('menu')
+            setOnlinePlayers([])
+          }}
+            className="w-full py-2 text-sm text-gray-500 hover:text-red-400 transition-colors">
+            离开房间
           </button>
         </div>
       )}

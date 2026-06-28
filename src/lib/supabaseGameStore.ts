@@ -25,13 +25,13 @@ export class SupabaseGameStore {
   // ============================================================
 
   /** 创建游戏房间 */
-  async createGame(nickname: string, _playerCount: number): Promise<{ gameId: string; code: string }> {
+  async createGame(nickname: string, maxPlayers: number): Promise<{ gameId: string; code: string }> {
     this.currentUserId = crypto.randomUUID()
     const code = Math.random().toString(36).substring(2, 8).toUpperCase()
 
     const { data: game, error } = await supabase
       .from('games')
-      .insert({ code, status: 'waiting' })
+      .insert({ code, status: 'waiting', max_players: maxPlayers })
       .select('id')
       .single()
 
@@ -47,29 +47,62 @@ export class SupabaseGameStore {
     })
 
     this.gameId = game.id
+    // 保存到 localStorage 用于断线重连
+    this.saveSession(game.id, code)
     return { gameId: game.id, code }
   }
 
   /** 加入游戏房间 */
   async joinGame(nickname: string, joinCode: string): Promise<string> {
-    this.currentUserId = crypto.randomUUID()
+    // 尝试恢复之前的身份
+    const saved = this.loadSession()
+    if (saved && saved.code === joinCode.toUpperCase()) {
+      this.currentUserId = saved.userId
+    } else {
+      this.currentUserId = crypto.randomUUID()
+    }
 
     const { data: game, error } = await supabase
       .from('games')
-      .select('id, status')
+      .select('id, status, max_players')
       .eq('code', joinCode.toUpperCase())
       .single()
 
     if (error || !game) throw new Error('未找到该房间')
 
+    // 检查是否已满
+    const { count, error: countErr } = await supabase
+      .from('game_players')
+      .select('*', { count: 'exact', head: true })
+      .eq('game_id', game.id)
+
+    if (!countErr && count !== null && count >= (game.max_players ?? 6)) {
+      throw new Error('房间已满')
+    }
+
+    // 检查是否已加入（重连）
     const { data: existing } = await supabase
+      .from('game_players')
+      .select('id')
+      .eq('game_id', game.id)
+      .eq('user_id', this.currentUserId)
+      .maybeSingle()
+
+    if (existing) {
+      // 重连：不重复插入
+      this.gameId = game.id
+      this.saveSession(game.id, joinCode.toUpperCase())
+      return game.id
+    }
+
+    const { data: seats } = await supabase
       .from('game_players')
       .select('seat_order')
       .eq('game_id', game.id)
       .order('seat_order', { ascending: false })
       .limit(1)
 
-    const seatOrder = (existing?.[0]?.seat_order ?? -1) + 1
+    const seatOrder = (seats?.[0]?.seat_order ?? -1) + 1
 
     await supabase.from('game_players').insert({
       game_id: game.id,
@@ -77,11 +110,32 @@ export class SupabaseGameStore {
       nickname,
       seat_order: seatOrder,
       is_host: false,
-      is_ready: true,
+      is_ready: false,
     })
 
     this.gameId = game.id
+    this.saveSession(game.id, joinCode.toUpperCase())
     return game.id
+  }
+
+  /** 保存会话 */
+  private saveSession(gameId: string, code: string): void {
+    localStorage.setItem('hunao_session', JSON.stringify({
+      gameId, code, userId: this.currentUserId,
+    }))
+  }
+
+  /** 加载会话 */
+  private loadSession(): { gameId: string; code: string; userId: string } | null {
+    try {
+      const raw = localStorage.getItem('hunao_session')
+      return raw ? JSON.parse(raw) : null
+    } catch { return null }
+  }
+
+  /** 清除会话 */
+  clearSession(): void {
+    localStorage.removeItem('hunao_session')
   }
 
   // ============================================================
