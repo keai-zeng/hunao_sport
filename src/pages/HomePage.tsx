@@ -18,18 +18,18 @@ export default function HomePage() {
   const [gameCode, setGameCode] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [onlinePlayers, setOnlinePlayers] = useState<{ id: string; nickname: string }[]>([])
+  const [onlinePlayers, setOnlinePlayers] = useState<{ id: string; userId: string; nickname: string }[]>([])
 
   // 在线模式：订阅玩家加入
   useEffect(() => {
     if (!onlineStore.gameId || !gameCode) return
 
     // 先加载已有玩家
-    supabase.from('game_players').select('id, nickname')
+    supabase.from('game_players').select('id, user_id, nickname')
       .eq('game_id', onlineStore.gameId)
       .order('seat_order')
       .then(({ data }) => {
-        if (data) setOnlinePlayers(data.map(p => ({ id: p.id, nickname: p.nickname })))
+        if (data) setOnlinePlayers(data.map(p => ({ id: p.id, userId: p.user_id, nickname: p.nickname })))
       })
 
     // 实时订阅新玩家
@@ -43,7 +43,7 @@ export default function HomePage() {
       }, (payload) => {
         setOnlinePlayers(prev => {
           if (prev.find(p => p.id === payload.new.id)) return prev
-          return [...prev, { id: payload.new.id, nickname: payload.new.nickname }]
+          return [...prev, { id: payload.new.id, userId: payload.new.user_id, nickname: payload.new.nickname }]
         })
       })
       .subscribe()
@@ -265,7 +265,7 @@ export default function HomePage() {
             </div>
             <div className="space-y-2">
               {onlinePlayers.map((p, i) => {
-                const isMe = p.id === onlineStore.currentUserId
+                const isMe = p.userId === onlineStore.currentUserId
                 return (
                   <div key={p.id} className="flex items-center gap-3 px-3 py-2 bg-gray-600 rounded-lg">
                     <span className="text-gray-500 text-sm w-6">#{i + 1}</span>
