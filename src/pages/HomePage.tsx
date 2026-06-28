@@ -166,38 +166,51 @@ export default function HomePage() {
 
       {/* ===== 在线模式 ===== */}
       {step === 'online_setup' && !gameCode && (
-        <div className="bg-gray-800 rounded-2xl p-8 w-full max-w-md space-y-6">
+        <div className="bg-gray-800 rounded-2xl p-8 w-full max-w-md space-y-5">
           <button onClick={() => setStep('menu')} className="text-sm text-gray-500 hover:text-gray-400">← 返回</button>
-            <div className="flex gap-2 mb-3">
+          <h2 className="text-xl font-bold flex items-center gap-2">🌐 在线联机</h2>
+
+          <div>
+            <label className="block text-sm text-gray-400 mb-3">玩家人数</label>
+            <div className="flex gap-2">
               {[2,3,4,5,6].map(n => (
                 <button key={n} onClick={() => setPlayerCount(n)}
-                  className={`flex-1 py-2 rounded-lg font-semibold transition-colors ${playerCount === n ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-400'}`}>
+                  className={`flex-1 py-3 rounded-lg text-lg font-semibold transition-all ${
+                    playerCount === n
+                      ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30 scale-105'
+                      : 'bg-gray-700 text-gray-300 hover:bg-gray-600 hover:text-white'
+                  }`}>
                   {n}人
                 </button>
               ))}
             </div>
-            <div>
-              <label className="block text-sm text-gray-400 mb-1">你的昵称</label>
-              <input type="text" value={nickname} onChange={e => setNickname(e.target.value)}
-                placeholder="输入昵称..." maxLength={12}
-                className="w-full px-4 py-3 bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white placeholder-gray-500" />
+          </div>
+
+          <div>
+            <label className="block text-sm text-gray-400 mb-1">你的昵称</label>
+            <input type="text" value={nickname} onChange={e => setNickname(e.target.value)}
+              placeholder="输入昵称..." maxLength={12}
+              className="w-full px-4 py-3 bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white placeholder-gray-500" />
+          </div>
+
+          <button onClick={onlineCreate} disabled={loading}
+            className="w-full py-4 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 rounded-xl font-semibold text-lg transition-colors shadow-lg shadow-blue-600/20">
+            {loading ? '创建中...' : '🌐 创建在线房间'}
+          </button>
+
+          <div className="border-t border-gray-700 pt-5">
+            <label className="block text-sm text-gray-400 mb-1">加入码</label>
+            <div className="flex gap-2">
+              <input type="text" value={joinCode} onChange={e => setJoinCode(e.target.value.toUpperCase())}
+                placeholder="输入6位加入码" maxLength={6}
+                className="flex-1 px-4 py-3 bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white placeholder-gray-500 uppercase text-lg tracking-widest text-center font-mono" />
+              <button onClick={onlineJoin} disabled={loading}
+                className="px-8 py-3 bg-green-600 hover:bg-green-500 disabled:opacity-50 rounded-lg font-semibold text-lg transition-colors">
+                {loading ? '...' : '加入'}
+              </button>
             </div>
-            <button onClick={onlineCreate} disabled={loading}
-              className="w-full py-3 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 rounded-lg font-semibold transition-colors">
-              {loading ? '创建中...' : '🌐 创建在线房间'}
-            </button>
-            <div className="border-t border-gray-700 pt-4">
-              <label className="block text-sm text-gray-400 mb-1">加入码</label>
-              <div className="flex gap-2">
-                <input type="text" value={joinCode} onChange={e => setJoinCode(e.target.value.toUpperCase())}
-                  placeholder="ABC123" maxLength={6}
-                  className="flex-1 px-4 py-3 bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white placeholder-gray-500 uppercase" />
-                <button onClick={onlineJoin} disabled={loading}
-                  className="px-6 py-3 bg-green-600 hover:bg-green-500 disabled:opacity-50 rounded-lg font-semibold transition-colors">
-                  {loading ? '...' : '加入'}
-                </button>
-              </div>
-            </div>
+          </div>
+          {error && <div className="bg-red-900/50 border border-red-700 rounded-lg px-4 py-2 text-red-300 text-sm">{error}</div>}
             {error && <div className="bg-red-900/50 border border-red-700 rounded-lg px-4 py-2 text-red-300 text-sm">{error}</div>}
           </div>
       )}
