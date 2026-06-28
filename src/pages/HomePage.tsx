@@ -82,11 +82,11 @@ export default function HomePage() {
       {step === 'menu' && (
         <div className="bg-gray-800 rounded-2xl p-8 w-full max-w-md space-y-4">
           <button onClick={() => setStep('local_setup')}
-            className="w-full py-4 bg-purple-600 hover:bg-purple-500 rounded-xl font-semibold text-lg transition-colors">
+            className="w-full py-4 bg-purple-600 hover:bg-purple-500 rounded-xl font-semibold text-lg transition-colors shadow-lg shadow-purple-600/20">
             🖥️ 本地热座（同一台电脑）
           </button>
           <button onClick={() => setStep('online_setup')}
-            className="w-full py-setStep('online_setup')t-semibold text-lg transition-colors">
+            className="w-full py-4 bg-blue-600 hover:bg-blue-500 rounded-xl font-semibold text-lg transition-colors shadow-lg shadow-blue-600/20">
             🌐 在线联机（多人异地）
           </button>
           <p className="text-xs text-gray-600 text-center pt-2">
